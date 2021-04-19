@@ -17,15 +17,26 @@ if __name__ == "__main__":
     print("height = {}".format(height))
 
     # creating 2D Array
-    array = np.array([[grayValue for i in range(width)]for j in range(height)])
-    print(array)
+    #array = np.array([[grayValue for i in range(width)]for j in range(height)])
+    # print(array)
 
     # show image with matplotlib as grayscale image
-    plt.imshow(array, cmap='gray', vmin=0, vmax=255)
-    plt.show()
+    #plt.imshow(array, cmap='gray', vmin=0, vmax=255)
+    # plt.show()
 
     # Bild einlesen
-    #img = Image.open(PATH)
-
-    # Bild speicher
-    # img.save(PATH)
+    PATH = r"C:\Users\Truckin\Desktop\Studium\6.Semester\Bildverarbeitung\Verkehrsschilder\vfa_07.jpg"
+    img = Image.open(PATH)
+    array = np.asarray(img)
+    newArray = np.zeros((len(array), len(array[0])))
+    #print(newArray)
+    gray=0
+    #for x in range(len(array)):
+    #    print(x)
+    #    for y in range(len(array[0])):
+    #        newArray[x][y] = 0.2989 * array[x][y][0] + 0.5870 *  array[x][y][1] + 0.1140 * array[x][y][2]
+    img1 = img.convert('L') 
+    newArray = np.asarray(img1) #convert a gray scale
+    print(newArray)
+    plt.imshow(newArray,cmap='gray', vmin=0, vmax=255)
+    plt.show()
