@@ -1,4 +1,3 @@
-from PIL import Image  # Libary for image loading saving and manipulation
 import matplotlib.pyplot as plt  # libary for showing image
 import numpy as np  # numpy libary
 from manual import *
@@ -32,13 +31,14 @@ def colorFilter(path):
 
     hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
     hsv = cv2.medianBlur(hsv, 5)
-    mask = cv2.inRange(hsv, lower_red, upper_red)
-    mask = cv2.add(mask, cv2.inRange(hsv, lower_lightred, upper_lightred))
-    mask = cv2.add(mask, cv2.inRange(hsv, lower_yellow, upper_yellow))
+    #mask = cv2.inRange(hsv, lower_red, upper_red)
+    #mask = cv2.add(mask, cv2.inRange(hsv, lower_lightred, upper_lightred))
+    #mask = cv2.add(mask, cv2.inRange(hsv, lower_yellow, upper_yellow))
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
     res = cv2.bitwise_and(img, img, mask=mask)
     height, width = res.shape[:2]
     imgS = cv2.resize(res, (int(width/5), int(height/5)))
-    cv2.imshow('squares', res)
+    cv2.imshow('squares', imgS)
     ch = cv2.waitKey()
     # h, s, v1 = cv2.split(res)
     # thresh = cv2.threshold(v1, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
@@ -67,10 +67,10 @@ def find_squares(img):
             for cnt in contours:
                 cnt_len = cv2.arcLength(cnt, True)
                 cnt = cv2.approxPolyDP(cnt, 0.02*cnt_len, True)
-                if len(cnt) == 4 and cv2.contourArea(cnt) > 10 and cv2.isContourConvex(cnt):
+                if len(cnt) == 4 and cv2.contourArea(cnt) > 400 and cv2.isContourConvex(cnt):
                     cnt = cnt.reshape(-1, 2)
                     max_cos = np.max([angle_cos( cnt[i], cnt[(i+1) % 4], cnt[(i+2) % 4] ) for i in xrange(4)])
-                    if max_cos < 0.1:
+                    if max_cos < 0.2:
                         squares.append(cnt)
     return squares
 
@@ -89,15 +89,20 @@ if __name__ == "__main__":
     # plt.show()
 
     # Bild einlesen
-    PATH = r"C:\Users\Truckin\Desktop\Studium\6.Semester\Bildverarbeitung\Verkehrsschilder\Bilder Sakal & Rahmat\images (3).jpg"
+    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\vfs_01.jpg   "
 
     libary = Libary(PATH)
     manual = Manual(PATH)
     img = cv2.imread(PATH)
     imgColor = colorFilter(PATH)
     squares = find_squares(imgColor)
-    cv2.drawContours( img, squares, -1, (0, 255, 0), 3 )
+    print(squares)
+    if(squares):
+        cv2.drawContours( img, squares, -1, (0, 255, 0), 3 )
+        cv2.putText(img, 'Vorfahrt', (squares[0][0][0], squares[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,255,12), 7)
+    else:
+        print("Kein Rechteck gefunden.")
     height, width = img.shape[:2]
     imgS = cv2.resize(img, (int(width/5), int(height/5)))
-    cv2.imshow('squares', img)
+    cv2.imshow('squares', imgS)
     ch = cv2.waitKey()
