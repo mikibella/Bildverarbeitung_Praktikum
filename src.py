@@ -81,6 +81,48 @@ def find_squares(img):
                         squares.append(cnt)
     return squares
 
+def find_triangle(img):
+    img = cv2.GaussianBlur(img, (5, 5), 0)
+    triangle = []
+    for gray in cv2.split(img):
+        for thrs in xrange(0, 255, 26):
+            if thrs == 0:
+                bin = cv2.Canny(gray, 0, 50, apertureSize=5)
+                bin = cv2.dilate(bin, None)
+            else:
+                _retval, bin = cv2.threshold(gray, thrs, 255, cv2.THRESH_BINARY)
+            contours, _hierarchy = cv2.findContours(bin, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                cnt_len = cv2.arcLength(cnt, True)
+                cnt = cv2.approxPolyDP(cnt, 0.02*cnt_len, True)
+                if len(cnt) == 3 and cv2.contourArea(cnt) > 400 and cv2.isContourConvex(cnt):
+                    cnt = cnt.reshape(-1, 2)
+                    max_cos = np.max([angle_cos( cnt[i], cnt[(i+1) % 3], cnt[(i+2) % 3] ) for i in xrange(3)])
+                    if max_cos < 0.65 and max_cos >0.35 :
+                        triangle.append(cnt)
+    return triangle
+
+def find_stop(img):
+    img = cv2.GaussianBlur(img, (5, 5), 0)
+    stop = []
+    for gray in cv2.split(img):
+        for thrs in xrange(0, 255, 26):
+            if thrs == 0:
+                bin = cv2.Canny(gray, 0, 50, apertureSize=5)
+                bin = cv2.dilate(bin, None)
+            else:
+                _retval, bin = cv2.threshold(gray, thrs, 255, cv2.THRESH_BINARY)
+            contours, _hierarchy = cv2.findContours(bin, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                cnt_len = cv2.arcLength(cnt, True)
+                cnt = cv2.approxPolyDP(cnt, 0.02*cnt_len, True)
+                if len(cnt) == 8 and cv2.contourArea(cnt) > 400 and cv2.isContourConvex(cnt):
+                    cnt = cnt.reshape(-1, 2)
+                    max_cos = np.max([angle_cos( cnt[i], cnt[(i+1) % 8], cnt[(i+2) % 8] ) for i in xrange(8)])
+                    if max_cos < 0.85 and max_cos >0.55:
+                        stop.append(cnt)
+    return stop
+
 def constrastLimit(image):
     img_hist_equalized = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
     channels = cv2.split(img_hist_equalized)
@@ -110,6 +152,131 @@ def removeSmallComponents(image, threshold):
             img2[output == i + 1] = 255
     return img2
 
+def psf2otf(psf, outSize=None):
+    # Prepare psf for conversion
+    data = prepare_psf(psf, outSize)
+
+    # Compute the OTF
+    otf = np.fft.fftn(data)
+
+    return np.complex64(otf)
+
+def prepare_psf(psf, outSize=None, dtype=None):
+    if not dtype:
+        dtype=np.float32
+
+    psf = np.float32(psf)
+
+    # Determine PSF / OTF shapes
+    psfSize = np.int32(psf.shape)
+    if not outSize:
+        outSize = psfSize
+    outSize = np.int32(outSize)
+
+    # Pad the PSF to outSize
+    new_psf = np.zeros(outSize, dtype=dtype)
+    new_psf[:psfSize[0],:psfSize[1]] = psf[:,:]
+    psf = new_psf
+
+    # Circularly shift the OTF so that PSF center is at (0,0)
+    shift = -(psfSize / 2)
+    shift = shift.astype(int)
+    psf = circshift(psf, shift)
+
+    return psf
+
+# Circularly shift array
+def circshift(A, shift):
+    for i in xrange(shift.size):
+        A = np.roll(A, shift[i], axis=i)
+    return A
+
+
+def l0_smoothing(img):
+    # L0 minimization parameters
+    kappa = 2.0
+    _lambda = 2e-2
+
+    N, M, D = np.int32(img.shape)
+    S = np.float32(img) / 256
+     # Compute image OTF
+    size_2D = [N, M]
+    fx = np.int32([[1, -1]])
+    fy = np.int32([[1], [-1]])
+    otfFx = psf2otf(fx, size_2D)
+    otfFy = psf2otf(fy, size_2D)
+
+    # Compute F(I)
+    FI = np.complex64(np.zeros((N, M, D)))
+    FI[:,:,0] = np.fft.fft2(S[:,:,0])
+    FI[:,:,1] = np.fft.fft2(S[:,:,1])
+    FI[:,:,2] = np.fft.fft2(S[:,:,2])
+
+    # Compute MTF
+    MTF = np.power(np.abs(otfFx), 2) + np.power(np.abs(otfFy), 2)
+    MTF = np.tile(MTF[:, :, np.newaxis], (1, 1, D))
+
+    # Initialize buffers
+    h = np.float32(np.zeros((N, M, D)))
+    v = np.float32(np.zeros((N, M, D)))
+    dxhp = np.float32(np.zeros((N, M, D)))
+    dyvp = np.float32(np.zeros((N, M, D)))
+    FS = np.complex64(np.zeros((N, M, D)))
+
+    # Iteration settings
+    beta_max = 1e5
+    beta = 2 * _lambda
+    iteration = 0
+    # Iterate until desired convergence in similarity
+    while beta < beta_max:
+        # compute dxSp
+        h[:,0:M-1,:] = np.diff(S, 1, 1)
+        h[:,M-1:M,:] = S[:,0:1,:] - S[:,M-1:M,:]
+
+        # compute dySp
+        v[0:N-1,:,:] = np.diff(S, 1, 0)
+        v[N-1:N,:,:] = S[0:1,:,:] - S[N-1:N,:,:]
+
+        # compute minimum energy E = dxSp^2 + dySp^2 <= _lambda/beta
+        t = np.sum(np.power(h, 2) + np.power(v, 2), axis=2) < _lambda / beta
+        t = np.tile(t[:, :, np.newaxis], (1, 1, 3))
+
+        # compute piecewise solution for hp, vp
+        h[t] = 0
+        v[t] = 0
+
+        ### Step 2: estimate S subproblem
+
+        # compute dxhp + dyvp
+        dxhp[:,0:1,:] = h[:,M-1:M,:] - h[:,0:1,:]
+        dxhp[:,1:M,:] = -(np.diff(h, 1, 1))
+        dyvp[0:1,:,:] = v[N-1:N,:,:] - v[0:1,:,:]
+        dyvp[1:N,:,:] = -(np.diff(v, 1, 0))
+        normin = dxhp + dyvp
+
+        FS[:,:,0] = np.fft.fft2(normin[:,:,0])
+        FS[:,:,1] = np.fft.fft2(normin[:,:,1])
+        FS[:,:,2] = np.fft.fft2(normin[:,:,2])
+
+
+        # solve for S + 1 in Fourier domain
+        denorm = 1 + beta * MTF
+        FS[:,:,:] = (FI + beta * FS) / denorm
+
+        # inverse FFT to compute S + 1
+        S[:,:,0] = np.float32((np.fft.ifft2(FS[:,:,0])).real)
+        S[:,:,1] = np.float32((np.fft.ifft2(FS[:,:,1])).real)
+        S[:,:,2] = np.float32((np.fft.ifft2(FS[:,:,2])).real)
+
+        # update beta for next iteration
+        beta *= kappa
+        iteration += 1
+
+    # Rescale image
+    S = S * 256
+    return S
+
+
 if __name__ == "__main__": 
     # Greetings to the World
     print("Moin World")
@@ -125,22 +292,40 @@ if __name__ == "__main__":
     # plt.show()
 
     # Bild einlesen
-    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\vorfahrt_str5.png"
+    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\false_12.jpg"
 
     libary = Libary(PATH)
     manual = Manual(PATH)
     img = cv2.imread(PATH)
-    height, width = img.shape[:2]
+    # scale_percent = 75 # percent of original size
+    # width = int(img.shape[1] * scale_percent / 100)
+    # height = int(img.shape[0] * scale_percent / 100)
+    # dim = (width, height)
+    # img = cv2.resize(img, dim, interpolation = cv2.INTER_CUBIC)
+
+
+    imS = cv2.resize(img, (960, 540)) 
+    cv2.imshow('squares', imS)
+    ch = cv2.waitKey()
+
+
+    #imgS = cv2.ximgproc.l0Smooth(img,0.002,1)
 
     imgContrast = constrastLimit(img)
     imgSmoothed = smoothImage(imgContrast)
-    binary_image = removeSmallComponents(imgSmoothed, 300)
+    
 
-
-    imgS = cv2.resize(binary_image, (int(width/5), int(height/5)))
-    cv2.imshow('squares', binary_image)
+    imS = cv2.resize(imgS, (960, 540)) 
+    cv2.imshow('squares', imS)
     ch = cv2.waitKey()
 
+
+    #binary_image = removeSmallComponents(imgSmoothed, 300)
+    binary_image = imgSmoothed
+
+    imS = cv2.resize(binary_image, (960, 540)) 
+    cv2.imshow('squares', imS)
+    ch = cv2.waitKey()
     res = cv2.bitwise_and(binary_image, binary_image, mask=colorFilter(img))
 
 
@@ -155,6 +340,21 @@ if __name__ == "__main__":
         cv2.putText(img, 'Vorfahrt', (squares[0][0][0], squares[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,255,12), 7)
     else:
         print("Kein Rechteck gefunden.")
-    imgS = cv2.resize(img, (int(width/5), int(height/5)))
-    cv2.imshow('squares', img)
+
+    triangle = find_triangle(res)
+    if(triangle):
+        cv2.drawContours( img, triangle, -1, (100, 255, 255), 3 )
+        cv2.putText(img, 'Dreieck', (triangle[0][0][0], triangle[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (255,36,12), 7)
+    else:
+        print("Kein Dreieck gefunden.")
+        
+    stop = find_stop(res)
+    if(stop):
+        cv2.drawContours( img, stop, -1, (255, 0, 0), 3 )
+        cv2.putText(img, 'Stop', (stop[0][0][0], stop[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,36,255), 7)
+    else:
+        print("Kein Stop gefunden.")
+
+    imS = cv2.resize(img, (960, 540)) 
+    cv2.imshow('squares', imS)
     ch = cv2.waitKey()
