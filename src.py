@@ -292,16 +292,16 @@ if __name__ == "__main__":
     # plt.show()
 
     # Bild einlesen
-    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\false_12.jpg"
+    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop4.png"
 
     libary = Libary(PATH)
     manual = Manual(PATH)
     img = cv2.imread(PATH)
-    # scale_percent = 75 # percent of original size
-    # width = int(img.shape[1] * scale_percent / 100)
-    # height = int(img.shape[0] * scale_percent / 100)
-    # dim = (width, height)
-    # img = cv2.resize(img, dim, interpolation = cv2.INTER_CUBIC)
+    scale_percent = 90 # percent of original size
+    width = int(img.shape[1] * scale_percent / 100)
+    height = int(img.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    img = cv2.resize(img, dim, interpolation = cv2.INTER_CUBIC)
 
 
     imS = cv2.resize(img, (960, 540)) 
@@ -315,9 +315,9 @@ if __name__ == "__main__":
     imgSmoothed = smoothImage(imgContrast)
     
 
-    imS = cv2.resize(imgS, (960, 540)) 
-    cv2.imshow('squares', imS)
-    ch = cv2.waitKey()
+    # imS = cv2.resize(imgSmoothed, (960, 540)) 
+    # cv2.imshow('squares', imS)
+    # ch = cv2.waitKey()
 
 
     #binary_image = removeSmallComponents(imgSmoothed, 300)
@@ -334,7 +334,7 @@ if __name__ == "__main__":
     # cv2.imshow('squares', imgS)
     # ch = cv2.waitKey()
 
-    squares = find_squares(res)
+    squares = find_squares(binary_image)
     if(squares):
         cv2.drawContours( img, squares, -1, (0, 255, 0), 3 )
         cv2.putText(img, 'Vorfahrt', (squares[0][0][0], squares[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,255,12), 7)
