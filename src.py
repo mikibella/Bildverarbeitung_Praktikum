@@ -292,7 +292,7 @@ if __name__ == "__main__":
     # plt.show()
 
     # Bild einlesen
-    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop4.png"
+    PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop1.png"
 
     libary = Libary(PATH)
     manual = Manual(PATH)

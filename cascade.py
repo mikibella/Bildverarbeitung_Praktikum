@@ -4,8 +4,16 @@ import cv2
 
 if __name__ == "__main__": 
     face_cascade = cv2.CascadeClassifier()
-    face_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\Bildverarbeitung_Praktikum\vfa_cascade.xml"))
-    frame = cv2.imread(r"C:\Users\bellmi2\Documents\BV-UNI\schilder\vfa_09.jpg")
+    face_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_vfs\cascade.xml"))
+    frame = cv2.imread(r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\vorfahrt_st.png")
+    #frame = cv2.imread(r"C:\Users\bellmi2\Documents\BV-UNI\training\stop\00017_00029.ppm")
+
+    scale_percent = 80 # percent of original size
+    width = int(frame.shape[1] * scale_percent / 100)
+    height = int(frame.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    frame = cv2.resize(frame, dim, interpolation = cv2.INTER_CUBIC)
+
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_gray = cv2.equalizeHist(frame_gray)
     #-- Detect faces
