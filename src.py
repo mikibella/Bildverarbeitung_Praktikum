@@ -276,7 +276,17 @@ def l0_smoothing(img):
     S = S * 256
     return S
 
-
+def drawBoundingBox(cnt,boundingBoxCoordinates):
+    for i in cnt:
+        boundRect = cv2.boundingRect(i)
+        boundingList = list(boundRect)
+        boundingList[0] = max(0, boundingList[0]-int(0.2*boundingList[2]))
+        boundingList[1] = max(0, boundingList[1]-int(0.2*boundingList[3]))
+        boundingList[2] = int(boundingList[2]*1.4)
+        boundingList[3] = int(boundingList[3]*1.4)
+        boundRect = tuple(boundingList)
+        boundingBoxCoordinates.append(boundRect)
+        
 if __name__ == "__main__": 
     # Greetings to the World
     print("Moin World")
@@ -292,12 +302,13 @@ if __name__ == "__main__":
     # plt.show()
 
     # Bild einlesen
+    # PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop2.png"
     PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop1.png"
 
     libary = Libary(PATH)
     manual = Manual(PATH)
     img = cv2.imread(PATH)
-    scale_percent = 90 # percent of original size
+    scale_percent = 100 # percent of original size
     width = int(img.shape[1] * scale_percent / 100)
     height = int(img.shape[0] * scale_percent / 100)
     dim = (width, height)
@@ -333,28 +344,52 @@ if __name__ == "__main__":
     # imgS = cv2.resize(res, (int(width/5), int(height/5)))
     # cv2.imshow('squares', imgS)
     # ch = cv2.waitKey()
-
+    boundingBoxCoordinates = []
     squares = find_squares(binary_image)
     if(squares):
-        cv2.drawContours( img, squares, -1, (0, 255, 0), 3 )
-        cv2.putText(img, 'Vorfahrt', (squares[0][0][0], squares[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,255,12), 7)
+        drawBoundingBox(squares,boundingBoxCoordinates)
     else:
         print("Kein Rechteck gefunden.")
 
     triangle = find_triangle(res)
     if(triangle):
-        cv2.drawContours( img, triangle, -1, (100, 255, 255), 3 )
-        cv2.putText(img, 'Dreieck', (triangle[0][0][0], triangle[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (255,36,12), 7)
+        drawBoundingBox(triangle,boundingBoxCoordinates)
     else:
         print("Kein Dreieck gefunden.")
         
     stop = find_stop(res)
+    
     if(stop):
-        cv2.drawContours( img, stop, -1, (255, 0, 0), 3 )
-        cv2.putText(img, 'Stop', (stop[0][0][0], stop[0][0][1]), cv2.FONT_HERSHEY_SIMPLEX, 3, (36,36,255), 7)
+        drawBoundingBox(stop,boundingBoxCoordinates)
     else:
         print("Kein Stop gefunden.")
-
-    imS = cv2.resize(img, (960, 540)) 
-    cv2.imshow('squares', imS)
-    ch = cv2.waitKey()
+    print(boundingBoxCoordinates)
+    boundingBoxCoordinates = filter(None, boundingBoxCoordinates)
+    for j in boundingBoxCoordinates:
+        print(j)
+        cropped_image = img[j[1]:j[1]+j[3], j[0]:j[0]+j[2]]
+        # imS = cv2.resize(cropped_image, (960, 540)) 
+        # cv2.imshow('squares', cropped_image)
+        # ch = cv2.waitKey()
+    
+        # width = int(cropped_image.shape[1] * 130/cropped_image.shape[1] )
+        # height = int(cropped_image.shape[0] * 120 / cropped_image.shape[0])
+        # dim = (width, height)
+        # cropped_image = cv2.resize(cropped_image, dim, interpolation = cv2.INTER_CUBIC)
+        # cv2.imshow('squares', cropped_image)
+        # ch = cv2.waitKey() 
+        face_cascade = cv2.CascadeClassifier()
+        face_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_stop\cascade.xml"))
+        frame_gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
+        frame_gray = cv2.equalizeHist(frame_gray)
+        #-- Detect faces
+        faces = face_cascade.detectMultiScale(frame_gray)
+        print(faces)
+        if(len(faces)!=0):
+            for (x,y,w,h) in faces:
+                center = (x + w//2, y + h//2)
+                frame = cv2.ellipse(cropped_image, center, (w//2, h//2), 0, 0, 360, (255, 0, 255), 4)
+                faceROI = frame_gray[y:y+h,x:x+w]
+        cv2.imshow('squares', cropped_image)
+        ch = cv2.waitKey() 
+    
