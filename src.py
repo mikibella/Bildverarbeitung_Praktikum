@@ -365,9 +365,11 @@ if __name__ == "__main__":
         print("Kein Stop gefunden.")
     print(boundingBoxCoordinates)
     boundingBoxCoordinates = filter(None, boundingBoxCoordinates)
+
     for j in boundingBoxCoordinates:
         print(j)
         cropped_image = img[j[1]:j[1]+j[3], j[0]:j[0]+j[2]]
+        
         # imS = cv2.resize(cropped_image, (960, 540)) 
         # cv2.imshow('squares', cropped_image)
         # ch = cv2.waitKey()
@@ -384,12 +386,7 @@ if __name__ == "__main__":
         frame_gray = cv2.equalizeHist(frame_gray)
         #-- Detect faces
         faces = face_cascade.detectMultiScale(frame_gray)
-        print(faces)
-        if(len(faces)!=0):
-            for (x,y,w,h) in faces:
-                center = (x + w//2, y + h//2)
-                frame = cv2.ellipse(cropped_image, center, (w//2, h//2), 0, 0, 360, (255, 0, 255), 4)
-                faceROI = frame_gray[y:y+h,x:x+w]
+        #  
         cv2.imshow('squares', cropped_image)
         ch = cv2.waitKey() 
     
