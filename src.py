@@ -36,8 +36,8 @@ def colorFilter(img):
     hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
 
     mask = cv2.inRange(hsv, lower_red, upper_red)
-    # mask2 = cv2.inRange(hsv, lower_lightred, upper_lightred)
-    # mask3 = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    mask2 = cv2.inRange(hsv, lower_lightred, upper_lightred)
+    mask3 = cv2.inRange(hsv, lower_yellow, upper_yellow)
     # mask4 = cv2.inRange(hsv, lower_white, upper_white)
     # mask5 = cv2.inRange(hsv, lower_black, upper_black)
 
