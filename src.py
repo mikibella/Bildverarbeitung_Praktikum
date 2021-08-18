@@ -152,129 +152,6 @@ def removeSmallComponents(image, threshold):
             img2[output == i + 1] = 255
     return img2
 
-def psf2otf(psf, outSize=None):
-    # Prepare psf for conversion
-    data = prepare_psf(psf, outSize)
-
-    # Compute the OTF
-    otf = np.fft.fftn(data)
-
-    return np.complex64(otf)
-
-def prepare_psf(psf, outSize=None, dtype=None):
-    if not dtype:
-        dtype=np.float32
-
-    psf = np.float32(psf)
-
-    # Determine PSF / OTF shapes
-    psfSize = np.int32(psf.shape)
-    if not outSize:
-        outSize = psfSize
-    outSize = np.int32(outSize)
-
-    # Pad the PSF to outSize
-    new_psf = np.zeros(outSize, dtype=dtype)
-    new_psf[:psfSize[0],:psfSize[1]] = psf[:,:]
-    psf = new_psf
-
-    # Circularly shift the OTF so that PSF center is at (0,0)
-    shift = -(psfSize / 2)
-    shift = shift.astype(int)
-    psf = circshift(psf, shift)
-
-    return psf
-
-# Circularly shift array
-def circshift(A, shift):
-    for i in xrange(shift.size):
-        A = np.roll(A, shift[i], axis=i)
-    return A
-
-
-def l0_smoothing(img):
-    # L0 minimization parameters
-    kappa = 2.0
-    _lambda = 2e-2
-
-    N, M, D = np.int32(img.shape)
-    S = np.float32(img) / 256
-     # Compute image OTF
-    size_2D = [N, M]
-    fx = np.int32([[1, -1]])
-    fy = np.int32([[1], [-1]])
-    otfFx = psf2otf(fx, size_2D)
-    otfFy = psf2otf(fy, size_2D)
-
-    # Compute F(I)
-    FI = np.complex64(np.zeros((N, M, D)))
-    FI[:,:,0] = np.fft.fft2(S[:,:,0])
-    FI[:,:,1] = np.fft.fft2(S[:,:,1])
-    FI[:,:,2] = np.fft.fft2(S[:,:,2])
-
-    # Compute MTF
-    MTF = np.power(np.abs(otfFx), 2) + np.power(np.abs(otfFy), 2)
-    MTF = np.tile(MTF[:, :, np.newaxis], (1, 1, D))
-
-    # Initialize buffers
-    h = np.float32(np.zeros((N, M, D)))
-    v = np.float32(np.zeros((N, M, D)))
-    dxhp = np.float32(np.zeros((N, M, D)))
-    dyvp = np.float32(np.zeros((N, M, D)))
-    FS = np.complex64(np.zeros((N, M, D)))
-
-    # Iteration settings
-    beta_max = 1e5
-    beta = 2 * _lambda
-    iteration = 0
-    # Iterate until desired convergence in similarity
-    while beta < beta_max:
-        # compute dxSp
-        h[:,0:M-1,:] = np.diff(S, 1, 1)
-        h[:,M-1:M,:] = S[:,0:1,:] - S[:,M-1:M,:]
-
-        # compute dySp
-        v[0:N-1,:,:] = np.diff(S, 1, 0)
-        v[N-1:N,:,:] = S[0:1,:,:] - S[N-1:N,:,:]
-
-        # compute minimum energy E = dxSp^2 + dySp^2 <= _lambda/beta
-        t = np.sum(np.power(h, 2) + np.power(v, 2), axis=2) < _lambda / beta
-        t = np.tile(t[:, :, np.newaxis], (1, 1, 3))
-
-        # compute piecewise solution for hp, vp
-        h[t] = 0
-        v[t] = 0
-
-        ### Step 2: estimate S subproblem
-
-        # compute dxhp + dyvp
-        dxhp[:,0:1,:] = h[:,M-1:M,:] - h[:,0:1,:]
-        dxhp[:,1:M,:] = -(np.diff(h, 1, 1))
-        dyvp[0:1,:,:] = v[N-1:N,:,:] - v[0:1,:,:]
-        dyvp[1:N,:,:] = -(np.diff(v, 1, 0))
-        normin = dxhp + dyvp
-
-        FS[:,:,0] = np.fft.fft2(normin[:,:,0])
-        FS[:,:,1] = np.fft.fft2(normin[:,:,1])
-        FS[:,:,2] = np.fft.fft2(normin[:,:,2])
-
-
-        # solve for S + 1 in Fourier domain
-        denorm = 1 + beta * MTF
-        FS[:,:,:] = (FI + beta * FS) / denorm
-
-        # inverse FFT to compute S + 1
-        S[:,:,0] = np.float32((np.fft.ifft2(FS[:,:,0])).real)
-        S[:,:,1] = np.float32((np.fft.ifft2(FS[:,:,1])).real)
-        S[:,:,2] = np.float32((np.fft.ifft2(FS[:,:,2])).real)
-
-        # update beta for next iteration
-        beta *= kappa
-        iteration += 1
-
-    # Rescale image
-    S = S * 256
-    return S
 
 def drawBoundingBox(cnt,boundingBoxCoordinates):
     for i in cnt:
@@ -288,9 +165,6 @@ def drawBoundingBox(cnt,boundingBoxCoordinates):
         boundingBoxCoordinates.append(boundRect)
         
 if __name__ == "__main__": 
-    # Greetings to the World
-    print("Moin World")
-    michaelMethoden = 0;
 
 
     # creating 2D Array
@@ -305,8 +179,6 @@ if __name__ == "__main__":
     # PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop2.png"
     PATH = r"C:\Users\bellmi2\Documents\BV-UNI\schilder\bilder\stop1.png"
 
-    libary = Libary(PATH)
-    manual = Manual(PATH)
     img = cv2.imread(PATH)
     scale_percent = 100 # percent of original size
     width = int(img.shape[1] * scale_percent / 100)
@@ -315,36 +187,24 @@ if __name__ == "__main__":
     img = cv2.resize(img, dim, interpolation = cv2.INTER_CUBIC)
 
 
-    imS = cv2.resize(img, (960, 540)) 
-    cv2.imshow('squares', imS)
-    ch = cv2.waitKey()
-
-
-    #imgS = cv2.ximgproc.l0Smooth(img,0.002,1)
 
     imgContrast = constrastLimit(img)
     imgSmoothed = smoothImage(imgContrast)
     
-
-    # imS = cv2.resize(imgSmoothed, (960, 540)) 
-    # cv2.imshow('squares', imS)
-    # ch = cv2.waitKey()
-
-
-    #binary_image = removeSmallComponents(imgSmoothed, 300)
     binary_image = imgSmoothed
 
     imS = cv2.resize(binary_image, (960, 540)) 
-    cv2.imshow('squares', imS)
+    cv2.imshow('Edge Picture', imS)
+
     ch = cv2.waitKey()
+
+
     res = cv2.bitwise_and(binary_image, binary_image, mask=colorFilter(img))
 
 
 
-    # imgS = cv2.resize(res, (int(width/5), int(height/5)))
-    # cv2.imshow('squares', imgS)
-    # ch = cv2.waitKey()
     boundingBoxCoordinates = []
+    
     squares = find_squares(binary_image)
     if(squares):
         drawBoundingBox(squares,boundingBoxCoordinates)
