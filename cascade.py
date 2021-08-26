@@ -9,10 +9,10 @@ if __name__ == "__main__":
     stop_cascade = cv2.CascadeClassifier()
 
     #Load Cascade Files
-    vf_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_vf\cascade.xml"))
-    vfa_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_vfa\cascade.xml"))
-    vfs_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_vfs\cascade.xml"))
-    stop_cascade.load(cv2.samples.findFile(r"C:\Users\bellmi2\Documents\BV-UNI\training\trained_stop\cascade.xml"))
+    vf_cascade.load(cv2.samples.findFile(r".\trained_vf\cascade.xml"))
+    vfa_cascade.load(cv2.samples.findFile(r".\trained_vfa\cascade.xml"))
+    vfs_cascade.load(cv2.samples.findFile(r".\trained_vfs\cascade.xml"))
+    stop_cascade.load(cv2.samples.findFile(r".\trained_stop\cascade.xml"))
     
     #Load Image
     frame = cv2.imread(r"C:\Users\bellmi2\Documents\BV-UNI\schilder\vfa_01.jpg")
