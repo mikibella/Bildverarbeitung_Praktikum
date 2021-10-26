@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import sys
 
 if __name__ == "__main__": 
     #Create Cascade Objects
@@ -15,7 +16,13 @@ if __name__ == "__main__":
     stop_cascade.load(cv2.samples.findFile(r".\trained_stop\cascade.xml"))
     
     #Load Image
-    frame = cv2.imread(r"C:\Users\bellmi2\Documents\BV-UNI\schilder\vfa_01.jpg")
+    if len(sys.argv) > 1:
+        image_path = sys.argv[1]
+        frame = cv2.imread(image_path)
+    else:
+        print("Please enter path")
+        sys.exit()
+
 
     #Cascade array for every road sign 
     cascade = [vf_cascade,vfa_cascade,vfs_cascade,stop_cascade]
